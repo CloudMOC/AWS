@@ -15,9 +15,9 @@ Parameters:
     ConstraintDescription: "Please choose a valid AWS region."
   EncryptionType:
     Type: String
-    Description: "Choose the type of encryption for the S3 bucket. Options: SSE-S3, SSE-KMS"
+    Description: "Choose the type of encryption for the S3 bucket. Options: SSE-S3, SSE-KMS, or Unencrypted"
     Default: "SSE-S3"
-    AllowedValues: ["SSE-S3", "SSE-KMS"]
+    AllowedValues: ["SSE-S3", "SSE-KMS", "Unencrypted"]
   KMSKeyID:
     Type: String
     Description: "Enter the KMS Key ID for SSE-KMS encryption (optional)"
@@ -62,13 +62,13 @@ Parameters:
     Default: "No"
     AllowedValues: ["Yes", "No"]
   ExpireCurrentVersionsAfterDays:
-    Type: Number
+    Type: String
     Description: "Number of days to expire current versions (if lifecycle is enabled)"
-    Default: 30
+    Default: "AWS::NoValue"
   ExpireNoncurrentVersionsAfterDays:
-    Type: Number
+    Type: String
     Description: "Number of days to expire noncurrent versions (if lifecycle is enabled)"
-    Default: 60
+    Default: "AWS::NoValue"
 Conditions:
   UseKMS: !Equals [!Ref EncryptionType, "SSE-KMS"]
 Resources:
@@ -109,10 +109,16 @@ Resources:
         !If
           - EnableLifecycle
           - Rules:
-              - Id: "ExpireCurrentVersions"
-                Status: "Enabled"
-                ExpirationInDays: !Ref ExpireCurrentVersionsAfterDays
-              - Id: "ExpireNoncurrentVersions"
-                Status: "Enabled"
-                NoncurrentVersionExpirationInDays: !Ref ExpireNoncurrentVersionsAfterDays
-          - {}
+              - !If
+                  - "ExpireCurrentVersionsAfterDays"
+                  - Id: "ExpireCurrentVersions"
+                    Status: "Enabled"
+                    ExpirationInDays: !Ref ExpireCurrentVersionsAfterDays
+                  - !Ref "AWS::NoValue"
+              - !If
+                  - "ExpireNoncurrentVersionsAfterDays"
+                  - Id: "ExpireNoncurrentVersions"
+                    Status: "Enabled"
+                    NoncurrentVersionExpirationInDays: !Ref ExpireNoncurrentVersionsAfterDays
+                  - !Ref "AWS::NoValue"
+          - !Ref "AWS::NoValue"
