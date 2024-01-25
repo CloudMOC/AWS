@@ -63,9 +63,9 @@ A gestão de custos é uma parte crucial da utilização eficiente da AWS. Criar
 - Defina o período de orçamento (mensal, trimestral, anual, etc.).
 - Escolha o tipo de orçamento (custos ou utilizações).
 
-### 5. **Configure as Linhas de Base**
+### 5. **Configure as métricas**
 
-- Defina a linha de base de custo ou utilização para o orçamento.
+- Defina a métrica de custo ou utilização para o orçamento.
 - Isso representa o valor máximo que você deseja gastar ou usar no período de orçamento.
 
 ### 6. **Adicione Alertas**
