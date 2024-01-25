@@ -1,0 +1,118 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  BucketName:
+    Type: String
+    Description: "Enter a unique name for your S3 bucket (3-63 characters, lowercase letters, numbers, hyphens, and no consecutive periods)"
+    MinLength: 3
+    MaxLength: 63
+    AllowedPattern: "[a-z0-9]+(-[a-z0-9]+)*"
+    ConstraintDescription: "Bucket name must be between 3 and 63 characters, use only lowercase letters, numbers, hyphens, and no consecutive periods."
+  BucketRegion:
+    Type: String
+    Description: "Enter the AWS region where you want to create the S3 bucket"
+    Default: "sa-east-1"  # Set default region to Sao Paulo (sa-east-1)
+    AllowedValues: !Join [",", !GetAZs ""]
+    ConstraintDescription: "Please choose a valid AWS region."
+  EncryptionType:
+    Type: String
+    Description: "Choose the type of encryption for the S3 bucket. Options: SSE-S3, SSE-KMS"
+    Default: "SSE-S3"
+    AllowedValues: ["SSE-S3", "SSE-KMS"]
+  KMSKeyID:
+    Type: String
+    Description: "Enter the KMS Key ID for SSE-KMS encryption (optional)"
+    ConstraintDescription: "Please enter a valid KMS Key ID."
+  BucketOwnerTag:
+    Type: String
+    Description: "Tag for 'Bucket Owner'"
+  CriticalityTag:
+    Type: String
+    Description: "Criticality level for the S3 bucket (Low or High)"
+    AllowedValues: ["Low", "High"]
+    ConstraintDescription: "Please choose a valid criticality level (Low or High)."
+  EnvironmentTag:
+    Type: String
+    Description: "Environment tag for the S3 bucket"
+    AllowedValues: ["PROD", "TST"]
+    ConstraintDescription: "Please choose a valid environment (PROD or TST)."
+  ProjectTag:
+    Type: String
+    Description: "Tag for 'Project'"
+    ConstraintDescription: "Please enter a valid value for the Project tag."
+  EnableVersioning:
+    Type: String
+    Description: "Enable versioning for the S3 bucket"
+    Default: "No"
+    AllowedValues: ["Yes", "No"]
+  EnableLogging:
+    Type: String
+    Description: "Enable logging for the S3 bucket"
+    Default: "No"
+    AllowedValues: ["Yes", "No"]
+  LogDestinationBucket:
+    Type: String
+    Description: "Destination bucket for S3 access logs (if logging is enabled)"
+  LogFilePrefix:
+    Type: String
+    Description: "Log file prefix for S3 access logs (if logging is enabled)"
+    Default: !Sub "S3-logs-${BucketName}"
+  EnableLifecycle:
+    Type: String
+    Description: "Enable lifecycle configuration for the S3 bucket"
+    Default: "No"
+    AllowedValues: ["Yes", "No"]
+  ExpireCurrentVersionsAfterDays:
+    Type: Number
+    Description: "Number of days to expire current versions (if lifecycle is enabled)"
+    Default: 30
+  ExpireNoncurrentVersionsAfterDays:
+    Type: Number
+    Description: "Number of days to expire noncurrent versions (if lifecycle is enabled)"
+    Default: 60
+Conditions:
+  UseKMS: !Equals [!Ref EncryptionType, "SSE-KMS"]
+Resources:
+  MyS3Bucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Ref BucketName
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              !If
+                - UseKMS
+                - KMSMasterKeyID: !Ref KMSKeyID
+                  SSEAlgorithm: "aws:kms"
+                - SSEAlgorithm: "AES256"
+      Tags:
+        - Key: "Environment"
+          Value: !Ref EnvironmentTag
+        - Key: "Project"
+          Value: !Ref ProjectTag
+        - Key: "BucketOwner"
+          Value: !Ref BucketOwnerTag
+        - Key: "Criticality"
+          Value: !Ref CriticalityTag
+      VersioningConfiguration:
+        !If
+          - EnableVersioning
+          - Status: "Enabled"
+          - Status: "Suspended"
+      LoggingConfiguration:
+        !If
+          - EnableLogging
+          - DestinationBucketName: !Ref LogDestinationBucket
+            LogFilePrefix: !Ref LogFilePrefix
+          - {}
+      LifecycleConfiguration:
+        !If
+          - EnableLifecycle
+          - Rules:
+              - Id: "ExpireCurrentVersions"
+                Status: "Enabled"
+                ExpirationInDays: !Ref ExpireCurrentVersionsAfterDays
+              - Id: "ExpireNoncurrentVersions"
+                Status: "Enabled"
+                NoncurrentVersionExpirationInDays: !Ref ExpireNoncurrentVersionsAfterDays
+          - {}
