@@ -89,7 +89,7 @@ Resources:
   MyBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
-      Bucket: !GetAtt MyS3Bucket.BucketName
+      Bucket: !GetAtt MyS3Bucket.Arn
       PolicyDocument:
         Version: 2012-10-17
         Statement:
