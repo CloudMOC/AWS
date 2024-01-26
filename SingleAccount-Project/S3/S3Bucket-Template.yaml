@@ -87,18 +87,18 @@ Resources:
           - {}
 
   MyBucketPolicy:
-  Type: AWS::S3::BucketPolicy
-  Properties:
-    Bucket: !Ref BucketName
-    PolicyDocument:
-      Version: 2012-10-17
-      Statement:
-        - Action:
-            - 's3:*'
-          Effect: Allow
-          Resource: 
-            - !Sub 'arn:aws:s3:::${BucketName}/*'
-            - !Sub 'arn:aws:s3:::${BucketName}'
-          Principal: '*'
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !GetAtt MyS3Bucket.Arn
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 's3:*'
+            Effect: Allow
+            Resource: 
+              - !Sub 'arn:aws:s3:::${BucketName}/*'
+              - !Sub 'arn:aws:s3:::${BucketName}'
+            Principal: '*'
 
 
