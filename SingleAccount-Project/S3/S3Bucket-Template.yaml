@@ -7,17 +7,11 @@ Parameters:
     MaxLength: 63
     AllowedPattern: "[a-z0-9]+(-[a-z0-9]+)*"
     ConstraintDescription: "Bucket name must be between 3 and 63 characters, use only lowercase letters, numbers, hyphens, and no consecutive periods."
-  BucketRegion:
-    Type: String
-    Description: "Enter the AWS region where you want to create the S3 bucket"
-    Default: "sa-east-1"  # Set default region to Sao Paulo (sa-east-1)
-    AllowedValues: !Join [",", !GetAZs ""]
-    ConstraintDescription: "Please choose a valid AWS region."
   EncryptionType:
     Type: String
-    Description: "Choose the type of encryption for the S3 bucket. Options: SSE-S3, SSE-KMS, or Unencrypted"
+    Description: "Choose the type of encryption for the S3 bucket. Options: SSE-S3, SSE-KMS"
     Default: "SSE-S3"
-    AllowedValues: ["SSE-S3", "SSE-KMS", "Unencrypted"]
+    AllowedValues: ["SSE-S3", "SSE-KMS"]
   KMSKeyID:
     Type: String
     Description: "Enter the KMS Key ID for SSE-KMS encryption (optional)"
@@ -52,31 +46,17 @@ Parameters:
   LogDestinationBucket:
     Type: String
     Description: "Destination bucket for S3 access logs (if logging is enabled)"
-  LogFilePrefix:
-    Type: String
-    Description: "Log file prefix for S3 access logs (if logging is enabled)"
-    Default: !Sub "S3-logs-${BucketName}"
-  EnableLifecycle:
-    Type: String
-    Description: "Enable lifecycle configuration for the S3 bucket"
-    Default: "No"
-    AllowedValues: ["Yes", "No"]
-  ExpireCurrentVersionsAfterDays:
-    Type: String
-    Description: "Number of days to expire current versions (if lifecycle is enabled)"
-    Default: "AWS::NoValue"
-  ExpireNoncurrentVersionsAfterDays:
-    Type: String
-    Description: "Number of days to expire noncurrent versions (if lifecycle is enabled)"
-    Default: "AWS::NoValue"
+
 Conditions:
   UseKMS: !Equals [!Ref EncryptionType, "SSE-KMS"]
+  UseVersioning: !Equals [!Ref EnableVersioning, "Yes"]
+  UseLogging: !Equals [!Ref EnableLogging, "Yes"]
+
 Resources:
   MyS3Bucket:
     Type: "AWS::S3::Bucket"
     Properties:
       BucketName: !Ref BucketName
-      AccessControl: Private
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -96,29 +76,29 @@ Resources:
           Value: !Ref CriticalityTag
       VersioningConfiguration:
         !If
-          - EnableVersioning
+          - UseVersioning
           - Status: "Enabled"
           - Status: "Suspended"
       LoggingConfiguration:
         !If
-          - EnableLogging
+          - UseLogging
           - DestinationBucketName: !Ref LogDestinationBucket
-            LogFilePrefix: !Ref LogFilePrefix
+            LogFilePrefix: !Sub "S3-logs-${BucketName}"
           - {}
-      LifecycleConfiguration:
-        !If
-          - EnableLifecycle
-          - Rules:
-              - !If
-                  - "ExpireCurrentVersionsAfterDays"
-                  - Id: "ExpireCurrentVersions"
-                    Status: "Enabled"
-                    ExpirationInDays: !Ref ExpireCurrentVersionsAfterDays
-                  - !Ref "AWS::NoValue"
-              - !If
-                  - "ExpireNoncurrentVersionsAfterDays"
-                  - Id: "ExpireNoncurrentVersions"
-                    Status: "Enabled"
-                    NoncurrentVersionExpirationInDays: !Ref ExpireNoncurrentVersionsAfterDays
-                  - !Ref "AWS::NoValue"
-          - !Ref "AWS::NoValue"
+
+  MyBucketPolicy:
+  Type: AWS::S3::BucketPolicy
+  Properties:
+    Bucket: !Ref BucketName
+    PolicyDocument:
+      Version: 2012-10-17
+      Statement:
+        - Action:
+            - 's3:*'
+          Effect: Allow
+          Resource: 
+            - !Sub 'arn:aws:s3:::${BucketName}/*'
+            - !Sub 'arn:aws:s3:::${BucketName}'
+          Principal: '*'
+
+
